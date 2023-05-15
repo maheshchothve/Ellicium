@@ -34,7 +34,7 @@ class HomePage:
         return self.driver.find_element(*HomePage.slicier)
     # --------------Selecting second dropdown of COURSE --------------------------------
     # to select the course drop down
-    CourseDropdown=(By.XPATH,"//*[@id='pvExplorationHost']/div/div/exploration/div/explore-canvas/div/div[2]/div/div[2]/div[2]/visual-container-repeat/visual-container[15]/transform/div/div[2]/div/visual-modern/div/div/div[2]/div/i")
+    CourseDropdown=(By.XPATH,"//div[@class='slicer-dropdown-menu' and @aria-label='Course_name']")
     def CourseDropdown1(self):
         return self.driver.find_element(*HomePage.CourseDropdown)
     # xpath for slicier of computer engineering
@@ -43,13 +43,14 @@ class HomePage:
         return self.driver.find_element(*HomePage.comslicier)
 
     # ---------------Selecting the semester dropdown-----------------
-    SemesterDropdown=(By.XPATH,"//*[@id='pvExplorationHost']/div/div/exploration/div/explore-canvas/div/div[2]/div/div[2]/div[2]/visual-container-repeat/visual-container[14]/transform/div/div[2]/div/visual-modern/div/div/div[2]/div/i")
+    SemesterDropdown=(By.XPATH,"//div[@class='slicer-dropdown-menu' and @aria-label='semester']/i")
     def Semdropdown(self):
         return self.driver.find_element(*HomePage.SemesterDropdown)
     #XPATH FOR THE SLICIER OF Semester1
     semslicier3=(By.XPATH,"//span[text()='Semester 1']/ancestor::div[contains(@class, 'slicerItemContainer')]")
     def slicier3(self):
         return self.driver.find_element(*HomePage.semslicier3)
+
     #---------selecting Subject from dropdown---------------------------
 
     SubjectDropdown=(By.XPATH,"//div[@class='slicer-dropdown-menu' and @aria-label='Subject_name']/i")
@@ -58,7 +59,8 @@ class HomePage:
     #Xpath for the Engineering Drawing
     subjectslicier4=(By.XPATH,"//span[text()='Engineering Drawing']/ancestor::div[contains(@class, 'slicerItemContainer')]")
     def slicier4(self):
-        return self.driver.find_element(*HomePage.subjectslicier4)
+        return self.driver.find_elements(*HomePage.subjectslicier4)
+
 
 
 
