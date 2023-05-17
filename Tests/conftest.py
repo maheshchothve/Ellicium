@@ -22,6 +22,9 @@ def pytest_addoption(parser):
 def setup(request):
     global driver
     browserName = request.config.getoption("browser_name")
+    from selenium.webdriver.chrome.options import Options
+    chrome_options = Options()
+    chrome_options.add_experimental_option("detach", True)
     if browserName == "chrome":
         sevice_obj = Service(r"C:\\Selenium Softwares\\chromedriver.exe")
         driver = webdriver.Chrome(service=sevice_obj)
@@ -34,8 +37,8 @@ def setup(request):
     driver.maximize_window()
     request.cls.driver = driver
     driver.implicitly_wait(40)
-    yield
-    driver.close()
+    # yield
+    # driver.close()
 
 
 

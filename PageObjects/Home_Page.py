@@ -16,31 +16,25 @@ class HomePage:
     def imageBag1(self):
         return self.driver.find_element(*HomePage.imageBag)
 
-    InstitueDropdown =(By.XPATH,"//*[@id='pvExplorationHost']/div/div/exploration/div/explore-canvas/div/div[2]/div/div[2]/div[2]/visual-container-repeat/visual-container[13]/transform/div/div[2]/div/visual-modern/div/div/div[2]/div/i")
+    InstitueDropdown =(By.XPATH,"//div[@class='slicer-dropdown-menu' and @aria-label='Institute_name']/i")
 
     def Institue(self):
         return self.driver.find_element(*HomePage.InstitueDropdown)
+    checkbox=(By.XPATH,"//span[@title='G P Mumbai']")
 
-    InstituteName=(By.XPATH,"//span[@title='G P Mumbai']")
-    def InstituteName1(self):
-        return self.driver.find_element(*HomePage.InstituteName)
-    # chcekbox for G.P.Mumbai isntitue
-    institutecheckbox=(By.XPATH,"//div[@class='row'][2]/div")
-    def checkbox(self):
-        return self.driver.find_element(*HomePage.institutecheckbox)
-    # to select the institue name slicier.
-    slicier= (By.XPATH,"//span[text()='G P Mumbai']/ancestor::div[contains(@class, 'slicerItemContainer')]")
-    def slicier1(self):
-        return self.driver.find_element(*HomePage.slicier)
-    # --------------Selecting second dropdown of COURSE --------------------------------
+    def checkbox_list(self):
+        return self.driver.find_element(*HomePage.checkbox)
+
+
+        # --------------Selecting second dropdown of COURSE --------------------------------
     # to select the course drop down
-    CourseDropdown=(By.XPATH,"//div[@class='slicer-dropdown-menu' and @aria-label='Course_name']")
+    CourseDropdown=(By.XPATH,"//div[@class='slicer-dropdown-menu' and @aria-label='Course_name']/i")
     def CourseDropdown1(self):
         return self.driver.find_element(*HomePage.CourseDropdown)
-    # xpath for slicier of computer engineering
-    comslicier=(By.XPATH,"//span[text()='Computer Engineering']/ancestor::div[contains(@class, 'slicerItemContainer')]")
-    def slicier2(self):
-        return self.driver.find_element(*HomePage.comslicier)
+
+    Course_checkbox=(By.XPATH,"//*[@id='slicer-dropdown-popup-9d48dd6c-51f8-e265-5be2-3a24acd2b838']/div[1]/div/div[2]/div/div[1]/div/div/div/div/span")
+    def Course_checkbox1(self):
+        return self.driver.find_elements(*HomePage.Course_checkbox)
 
     # ---------------Selecting the semester dropdown-----------------
     SemesterDropdown=(By.XPATH,"//div[@class='slicer-dropdown-menu' and @aria-label='semester']/i")

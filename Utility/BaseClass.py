@@ -12,7 +12,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 import pyodbc
 from selenium.webdriver.support import expected_conditions as EC
 
-from POC2 import DBConfigurations
+import DBConfigurations
 
 
 @pytest.mark.usefixtures("setup")
