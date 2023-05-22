@@ -16,8 +16,10 @@ class DatabaseConnection:
         sheet = book.active
         cell = sheet.cell(row=row_num, column=3)
 
-        cursor.execute(cell.value)
-        # print(cell.value)
+        query=str(cell.value)
+
+        cursor.execute(query)
+
         db_list = []
 
         for i in cursor:
