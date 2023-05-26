@@ -2,8 +2,9 @@ import datetime
 import os
 
 import win32com.client as win32
+import openpyxl
 
-import Ellicium.DBConfigurations.Config_file
+import DBConfigurations.Config_file
 
 
 class Sendemailclass:
@@ -11,7 +12,7 @@ class Sendemailclass:
         # Get the email addresses from Sheet2, column A
         wb = win32.gencache.EnsureDispatch('Excel.Application')
         wb.Visible = False
-        wb.Workbooks.Open(os.path.abspath(Ellicium.DBConfigurations.Config_file.Excel_Report_File))
+        wb.Workbooks.Open(os.path.abspath(DBConfigurations.Config_file.Excel_Report_File))
 
         ws = wb.Worksheets('Sheet2')
         rngTo = ws.Range("A1:A" + str(ws.Cells(ws.Rows.Count, "A").End(-4162).Row))
@@ -38,7 +39,7 @@ class Sendemailclass:
             rowCount) + "</td><td>" + str(passCount) + "</td><td>" + str(failCount) + "</td></tr></table></body></html>"
 
         # Get the attachment file name
-        strAttachment = Ellicium.DBConfigurations.Config_file.Excel_Report_File
+        strAttachment =DBConfigurations.Config_file.Excel_Report_File
 
         # Create the Outlook object and email
         outlook = win32.Dispatch('Outlook.Application')

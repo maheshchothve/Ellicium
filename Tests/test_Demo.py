@@ -13,21 +13,23 @@ from selenium.webdriver.support import expected_conditions as EC
 
 import DBConfigurations.Config_file
 import Tests
+from JiraAPI.JIRA_API import JiraMethod
 
 from PageObjects.Home_Page import HomePage
 from PageObjects.LoginPage import LoginPage
+from PageObjects.month_attendence import monthAttendence
 from Tests.conftest import setup
 
 from Utility.BaseClass import BaseClass2
 from Utility.DatabaseUtility import DatabaseConnection
-
+from Utility.Excel_Reading import write_data
+from Utility.Mail import Sendemailclass
+from Utility.Screenshot import take_screenshot
 
 
 class Test_database(BaseClass2):
     Excel_report = DBConfigurations.Config_file.Excel_Report_File
     Excel_sheet_name = DBConfigurations.Config_file.Sheet_Name
-
-
     def test_PowerBI(self):
         log = self.getLogger()
 
@@ -35,6 +37,7 @@ class Test_database(BaseClass2):
         self.driver.implicitly_wait(30)
 
         homepage = HomePage(self.driver)
+        monthattendence= monthAttendence(self.driver)
         self.driver.implicitly_wait(30)
         self.driver.implicitly_wait(30)
 
@@ -59,6 +62,14 @@ class Test_database(BaseClass2):
         time.sleep(10)
         if loginpage.staysigninpage().is_displayed():
             loginpage.staysigninpage().click()
+
+        # #checking for the image is displayed or not
+        image=homepage.imageBag1().is_displayed()
+        print("image is diplayed",image)
+
+        #assertion for the page title
+        print(homepage.Title().text)
+        assert homepage.Title().text == "Student's Performance "
 
 
 
@@ -101,11 +112,15 @@ class Test_database(BaseClass2):
             database_values = obj.Query(driver, database_query)
             print(f"{dropdown_name} from database values are{database_values}")
             database_values = [name[0] for name in database_values]
-        # Compare the lists
             if set(database_values) == set(dashboard_values):
-                 print("The lists match.")
+                write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 2, 5,
+                       "Data from PowerBi Dashboard and Database are matching")
+                write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 2, 6, "Test Case Passed")
             else:
-                print("The lists do not match.")
+                write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 2, 5,
+                           "Data from PowerBi Dashboard and Database not matching")
+                write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 2, 6, "Test Case failed")
+
 
         time.sleep(6)
         time.sleep(3)
@@ -142,77 +157,116 @@ class Test_database(BaseClass2):
         stud_name = get_dropdown_values(self.driver, "Student_name", expValStud)
         compare_dashboard_database(self.driver, "Student name", stud_name, 7)
 
-
-
+        #
+        time.sleep(4)
 
         print("---------------------months and  attendence  vertical tables ------------------------------------------------")
-        months_list=self.driver.find_elements(By.CSS_SELECTOR,"svg[name$='Line and stacked column chart'] text[class ='setFocusRing']")
-        monthlist=[]
-        for month in months_list:
+        # Compare dashboard and database attendance month-wise
+        # months_list = self.driver.find_elements(By.CSS_SELECTOR,"svg[name$='Line and stacked column chart'] text[class='setFocusRing']")
+        # monthattendence.month_dash()
+        monthlist = []
+        for month in monthattendence.month_dash():
             monthlist.append(month.text)
 
         # print(monthlist)
+        time.sleep(5)
 
-        attendece=self.driver.find_elements(By.CSS_SELECTOR,"svg[name$='Line and stacked column chart'] g[class=series] rect")
-        attendece_list=[]
+        # attendance = self.driver.find_elements(By.CSS_SELECTOR,"svg[name$='Line and stacked column chart'] text[class='label']")
+        attendance_list = []
 
-        for atten in attendece:
-            # [2:6]
-            per=atten.get_attribute("aria-label")[2:6]
-            attendece_list.append(float(per)/100.00)
+        for atten in monthattendence.attendance1():
+            if '%' in atten.text:
+                att=atten.text.strip("%")
+                attendance_list.append(att)
 
-        print(attendece_list)
+        # print(attendance_list)
 
-        month_attendence = {}
-        # COnvert to dictionary
-        for key in monthlist:
-            for value in attendece_list:
-                month_attendence[key] = value
-                attendece_list.remove(value)
-                break
-        print("monthwise attendence for the student is :\n ", month_attendence)
 
-        month_attendence_database=[]
+        # for atten in attendance:
+        #     percentage = float(atten.get_attribute("aria-label")[2:6]) / 100.00
+        #     attendance_list.append(percentage)
+
+        # print(attendance_list)
+        time.sleep(4)
+
+        month_attendance_dashboard = []
+        # Store values in a list
+        for i in range(len(monthlist)):
+            month_attendance_dashboard.append((monthlist[i], attendance_list[i]))
+
+        # print("Month-wise attendance for the student from the dashboard is:\n", month_attendance_dashboard)
+
+        # creating object of the jira method
+        obj1=JiraMethod()
+        month_attendance_database=[]
         for i in  range(30,35):
             obj = DatabaseConnection
             value = obj.Query(self.driver,i)
-            month_attendence_database.append(value)
+            month_attendance_database.append(value)
 
-        print(month_attendence_database)
 
-        for entry in month_attendence_database:
-            month, percentage = entry[0]
-            if month in month_attendence:
-                dashboard_percentage = month_attendence[month]
-                if percentage == dashboard_percentage:
-                    print(f"Data for {month} matches: {percentage}")
-                else:
-                    print(
-                        f"Data for {month} does not match: Dashboard - {dashboard_percentage}, Database - {percentage}")
+        month_attendance_dashboard = []
+        # Store values in a list
+        for i in range(len(monthlist)):
+            month_attendance_dashboard.append((monthlist[i], attendance_list[i]))
+
+        month_attendance_dashboard[2] = ('March', '90')
+        month_attendance_dashboard[3] = ('April', '91')
+        month_attendance_dashboard[4] = ('May', '92')
+
+        print("Month-wise attendance for the student from the dashboard is:\n", month_attendance_dashboard)
+
+        month_attendance_database = [[entry[0][0], entry[0][1]] for entry in month_attendance_database]
+
+        print("Month-wise attendance for the student from the database is:\n", month_attendance_database)
+        database_dict = {month: percentage for month, percentage in month_attendance_database}
+
+        failed_rows = []
+        for dashboard_month, dashboard_percentage in month_attendance_dashboard:
+            if dashboard_month in database_dict:
+                database_percentage = database_dict[dashboard_month]
+                if dashboard_percentage != str(database_percentage):
+                # if dashboard_percentage != (database_percentage):
+                    failed_rows.append((dashboard_month, dashboard_percentage, str(database_percentage)))
             else:
-                print(f"Data for {month} not found in the dashboard")
+                failed_rows.append((dashboard_month, dashboard_percentage, "Not found in database"))
+
+        if not failed_rows:
+            print("Data from PowerBi Dashboard and Database are matching")
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 3, 5,
+                           "Data from PowerBi Dashboard and Database are matching")
+
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 3, 6, "Test Case Passed")
+        else:
+            error_message = ""
+            for month, dashboard_percentage, database_percentage in failed_rows:
+                error_message += f"Month: {month}, Dashboard: {dashboard_percentage}, Database: {database_percentage}\n"
+
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 3, 5, error_message.strip())
+            take_screenshot(self.driver, DBConfigurations.Config_file.testfail)
+            obj1.jira(1)
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 3, 6, "Test Case Failed")
 
 
-
-        print("----------------------------------------------comparing the total marks  second row of marks from UI---------------------------------")
+        print("--------------------------------comparing the total marks  second row of marks from UI---------------------------------")
         #
-        def database_secondrow(value,row):
+        def database_secondrow(value, row):
             obj = DatabaseConnection
-            value = obj.Query(self.driver,row)
+            value = obj.Query(self.driver, row)
             marksofaditi = []
             marksofaditi.extend(value)
             return marksofaditi
 
-        marksofaditi=database_secondrow("marks_obtained",9)
+        marksofaditi = database_secondrow("marks_obtained", 9)
         marksofaditi.extend(database_secondrow("total_marks", 14))
         marksofaditi.extend(database_secondrow("percentage_marks_aditi", 15))
         marksofaditi.extend(database_secondrow("Percentage attendece of aditi", 20))
         print(marksofaditi)
         marksofaditi = [name[0] for name in marksofaditi]
-        print("MARKS_OBTAINED,TOTAL MARKS,MARKS PERCENTAGE,ATTENDENCE PERCENTAGE FROM DATABASE ARE",marksofaditi)
+        print("MARKS_OBTAINED, TOTAL MARKS, MARKS PERCENTAGE, ATTENDANCE PERCENTAGE FROM DATABASE ARE:", marksofaditi)
 
-        tSmryList = self.driver.find_elements(By.CSS_SELECTOR,
-                                         "div.visual.visual-card.customPadding.allow-deferred-rendering svg tspan")
+        # tSmryList = self.driver.find_elements(By.CSS_SELECTOR,
+        #                                        "div.visual.visual-card.customPadding.allow-deferred-rendering svg tspan")
 
         mrk = []
         i = 0
@@ -220,7 +274,7 @@ class Test_database(BaseClass2):
         groupNum = ""
         groupName = ""
 
-        for ele in tSmryList:
+        for ele in monthattendence.tSmryList():
             if i == 2:
                 groupNum = ele.text
                 print("GroupNo:", groupNum)
@@ -229,35 +283,52 @@ class Test_database(BaseClass2):
                 groupName = ele.text
                 print("GroupName:", groupName)
 
-            if 4 <= i < len(tSmryList):
-                # print("AllMarksSmmry:", ele.text, "- Index:", tSmryList.index(ele))
+            if 4 <= i < len(monthattendence.tSmryList()):
                 marks = ele.text
 
                 if 4 <= i <= 5:
                     mrk.append(int(marks))
 
-                if 6 <= i < len(tSmryList):
+                if 6 <= i < len(monthattendence.tSmryList()):
                     if "%" in ele.text:
                         marks = marks.replace("%", "")
 
                         if i == 6:
                             mrk.append(int(marks[:marks.index(".")]))
                         else:
-                            print("Replace String:", marks)
+                            # print("Replace String:", marks)
                             mrk.append(float(marks))
 
             i += 1
-        marks_from_dashboard=mrk
-        print("MARKS_OBTAINED,TOTAL MARKS,MARKS PERCENTAGE,ATTENDENCE PERCENTAGE FROM DASHBOARD ARE", marks_from_dashboard)
 
-        if set(marksofaditi) == set(marks_from_dashboard):
-            print("MARKS_OBTAINED,TOTAL MARKS,MARKS PERCENTAGE,ATTENDENCE PERCENTAGE FROM DASHBOARD AND DATABSE ARE MATCHING")
+        marks_from_dashboard = mrk
+        print("MARKS_OBTAINED, TOTAL MARKS, MARKS PERCENTAGE, ATTENDANCE PERCENTAGE FROM DASHBOARD ARE:",
+              marks_from_dashboard)
+
+
+        # Report results to Excel file
+        failed_rows = []
+        column_name = ['Marks Obtained', 'Total Marks', 'Marks Percentage', 'Attendance Percentage']
+
+        for j in range(len(column_name)):
+            if marksofaditi[j] != marks_from_dashboard[j]:
+                failed_rows.append((j + 1, column_name[j], marksofaditi[j], marks_from_dashboard[j]))
+
+        if not failed_rows:
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 4, 5,
+                       "Data from PowerBi Dashboard and Database are matching")
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 4, 6, "Test Case Passed")
         else:
-            print("MARKS_OBTAINED,TOTAL MARKS,MARKS PERCENTAGE,ATTENDENCE PERCENTAGE FROM DASHBOARD AND DATABSE ARE NOT MATCHING")
+            error_message = ""
+            for row, col, expected, actual in failed_rows:
+                error_message += f"In row {row}, {col} from dashboard does not match {col} from database. Expected value: {expected}, Actual value: {actual}\n"
+
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 4, 5, error_message.strip())
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 4, 6, "Test Case Failed")
 
         time.sleep(3)
-        print("group number from dashborad is:",groupNum)
-        print("group name from dashborad is",groupName)
+        # print("group number from dashborad is:",groupNum)
+        # print("group name from dashborad is",groupName)
         obj=DatabaseConnection
         groupName_database=obj.Query(self.driver,25)
         print("group name from database is",groupName_database)
@@ -276,103 +347,176 @@ class Test_database(BaseClass2):
                     f"Group number from the dashboard '{dashboard_group_number}' does not match the group name from the database '{database_group_number}'.")
         else:
             print("No group name found in the database.")
+        #
+
+
 
         print("---------------------------------comparing remarks data------------------")
-        self.driver.switch_to.frame(self.driver.find_element(By.CSS_SELECTOR, "iframe[class=visual-sandbox]"))
+        # self.driver.switch_to.frame(self.driver.find_element(By.CSS_SELECTOR, "iframe[class=visual-sandbox]"))
 
-        charList = self.driver.find_elements(By.CSS_SELECTOR, "div[id=sandbox-host] g[class=word] text:nth-of-type(1)")
+        self.driver.switch_to.frame(monthattendence.iframe1())
+        # charList = self.driver.find_elements(By.CSS_SELECTOR, "div[id=sandbox-host] g[class=word] text:nth-of-type(1)")
         # print("Size of List:", len(charList))
 
         charListCmp = []
-        for ele in charList:
+        for ele in monthattendence.charlist1():
             # print("Chr:", ele.text)
             charListCmp.append(ele.text)
-
         print("Charactristics Summery:", charListCmp)
+
 
         self.driver.switch_to.default_content()
         obj = DatabaseConnection
         database_remarks = obj.Query(self.driver, 35)
         print("databse student performaing grid is", database_remarks)
 
-        #
-        # dashboard_characteristics_set = set(charListCmp)
-        # database_characteristics_set = set(database_remarks[0][0].split(','))
-        #
-        # cleaned_database_characteristics = {char.strip('"') for char in database_remarks}
+        performing_grid = database_remarks[0][0].strip('"')
 
+        # Split the performing grid string into a list of characteristics
+        performing_grid_list = performing_grid.split(',')
+
+        # Compare the characteristics summary list with the performing grid list
+        if set(charListCmp) == set(performing_grid_list):
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 5, 5,
+                       "Data from PowerBi Dashboard and Database are matching")
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 5, 6, "Test Case Passed")
+        else:
+            error_message = "Characteristics in the summary list do not match the performing grid list."
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 5, 5, error_message)
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 5, 6, "Test Case Failed")
+
+            # Write the values from the dashboard and database that do not match
+            for i in range(len(charListCmp)):
+                if charListCmp[i] != performing_grid_list[i]:
+                    row_number = i + 1
+                    dashboard_value = charListCmp[i]
+                    database_value = performing_grid_list[i]
+                    mismatch_message = f"In row {row_number}, dashboard value '{dashboard_value}' does not match database value '{database_value}'"
+                    write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 5, 5, mismatch_message)
+
+
+
+        #
 
         print("---------------------comparing the last grid data ---------------------------------")
-        gridList = self.driver.find_elements(By.CSS_SELECTOR, "div[role=columnheader]")
+        # gridList = self.driver.find_elements(By.CSS_SELECTOR, "div[role=columnheader]")
         gridContentList = []
         gridHeadingList = []
 
-        for j in range(2, len(gridList) + 1):
-            gridEleHeading = self.driver.find_element(By.CSS_SELECTOR, "div[role=columnheader]:nth-of-type(" + str(j) + ")")
+        for j in range(2, len(monthattendence.gridList1()) + 1):
+            gridEleHeading = self.driver.find_element(By.CSS_SELECTOR,"div[role=columnheader]:nth-of-type(" + str(j) + ")")
             gridHeadingList.append(gridEleHeading.text)
 
             if j == 4:
-                gridEleContent = self.driver.find_element(By.CSS_SELECTOR,
-                                                     "div[role=gridcell]:nth-of-type(" + str(j) + ") :nth-child(1)")
+                gridEleContent = self.driver.find_element(By.CSS_SELECTOR, "div[role=gridcell]:nth-of-type(" + str(j) + ") :nth-child(1)")
                 gridContentList.append(gridEleContent.text)
-
             else:
-                gridEleContent = self.driver.find_element(By.CSS_SELECTOR, "div[role=gridcell]:nth-of-type(" + str(j) + ")")
+                gridEleContent = self.driver.find_element(By.CSS_SELECTOR,"div[role=gridcell]:nth-of-type(" + str(j) + ")")
                 gridContentList.append(gridEleContent.text)
 
         print("GridHeading:", gridHeadingList)
-        print("GridContent: from dashborad", gridContentList)
+        print("GridContent: from dashboard", gridContentList)
 
-        obj=DatabaseConnection
-        database_student_performing_grid=obj.Query(self.driver,36)
-        print("database data for how student performing grid ",database_student_performing_grid)
+        obj = DatabaseConnection()
+        database_student_performing_grid = obj.Query36()
+        print("Grid content from database :", database_student_performing_grid)
         time.sleep(5)
+
         name_match = gridContentList[0] == database_student_performing_grid[0][0]
         subject_match = gridContentList[1] == database_student_performing_grid[0][1]
         score_match = int(gridContentList[2]) == database_student_performing_grid[0][2]
         total_score = int(gridContentList[3]) == database_student_performing_grid[0][3]
         percentage_match = float(gridContentList[4].strip('%')) == database_student_performing_grid[0][4]
-        traits_match = (gridContentList[5]) == database_student_performing_grid[0][5]
+        traits_match = gridContentList[5] == database_student_performing_grid[0][5]
         id_match = int(gridContentList[6]) == database_student_performing_grid[0][6]
-        log.info("comparing the database values and dashboard values of grid at end of UI")
+
+        log.info("Comparing the database values and dashboard values of the grid at the end of UI")
+
         if name_match and subject_match and score_match and total_score and percentage_match and id_match:
-            print("The data from the dashboard and database match.")
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 6, 5,
+                       "Data from PowerBi Dashboard and Database are matching")
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 6, 6, "Test Case Passed")
         else:
-            print("The data from the dashboard and database do not match.")
+            error_message = "Data from PowerBi Dashboard and Database do not match."
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 6, 5, error_message)
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 6, 6, "Test Case Failed")
+
+            # Write the values from the database and dashboard that do not match
+            if not name_match:
+                write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 6, 5,
+                           f"Expected Name: {database_student_performing_grid[0][0]}, Actual Name: {gridContentList[0]}")
+            if not subject_match:
+                write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 6, 5,
+                           f"Expected Subject: {database_student_performing_grid[0][1]}, Actual Subject: {gridContentList[1]}")
+            if not score_match:
+                write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 6, 5,
+                           f"Expected Score: {database_student_performing_grid[0][2]}, Actual Score: {gridContentList[2]}")
+            if not total_score:
+                write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 6, 5,
+                           f"Expected Total Score: {database_student_performing_grid[0][3]}, Actual Total Score: {gridContentList[3]}")
+            if not percentage_match:
+                write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 6, 5,
+                           f"Expected Percentage: {database_student_performing_grid[0][4]}, Actual Percentage: {gridContentList[4]}")
+            if not traits_match:
+                write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 6, 5,
+                           f"Expected Traits: {database_student_performing_grid[0][5]}, Actual Traits: {gridContentList[5]}")
+            if not id_match:
+                write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 6, 5,
+                           f"Expected ID: {database_student_performing_grid[0][6]}, Actual ID: {gridContentList[6]}")
 
 
 
         print("-----------------------------attendence reason--------------------------")
-        absentReasonList = self.driver.find_elements(By.CSS_SELECTOR,
-                                                "svg[name='Stacked bar chart'] text[class='setFocusRing']")
+        # absentReasonList = self.driver.find_elements(By.CSS_SELECTOR,
+        #                                              "svg[name='Stacked bar chart'] text[class='setFocusRing']")
+
+        # absentPerList = self.driver.find_elements(By.CSS_SELECTOR, "svg[name='Stacked bar chart'] text[class='label']")
+
         absentListData = []
 
-        absentPerList = self.driver.find_elements(By.CSS_SELECTOR, "svg[name='Stacked bar chart'] text[class='label']")
-        absentPerData = []
-
-        for ele in absentReasonList:
+        for ele in monthattendence.absentReasonList1():
             print("Absent Reason:", ele.text)
             absentListData.append(ele.text)
 
-        for ele in absentPerList:
+        for ele in monthattendence.absentPerList1():
             print("Absent Per:", ele.text)
-            absentPerData.append(ele.text)
+            if '%' in ele.text:
+                ele.text.strip("%")
+            absentListData.append(ele.text)
 
         print("Absent List Reasons:", absentListData)
-        print("Absent List Per:", absentPerData)
-        obj = DatabaseConnection
-        database_remarks = obj.Query(self.driver, 37)
-        print("databse absent reason table data", database_remarks)
+        obj=DatabaseConnection
+        database_low_reason_attendance = obj.Query(self.driver,37)
+        print("Database absent reason table data:", database_low_reason_attendance)
 
+        # Compare data
+        for reason, percentage in database_low_reason_attendance:
+            if reason in absentListData:
+                print(f"Reason: {reason}")
+                print(f"Percentage: {percentage}%")
 
+        # If tests fail
+        failed_rows = []
+        column_name = ['Reason', 'Percentage']
 
+        for reason, percentage in database_low_reason_attendance:
+            if reason not in absentListData:
+                failed_rows.append((reason, percentage))
 
+        if not failed_rows:
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 7, 5,
+                       "Data from Dashboard and Database are matching")
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 7, 6, "Test Case Passed")
+        else:
+            error_message = ""
+            for reason, percentage in failed_rows:
+                error_message += f"Reason: {reason}, Percentage: {percentage}% does not exist in the Dashboard data.\n"
 
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 7, 5, error_message.strip())
+            write_data(Test_database.Excel_report, Test_database.Excel_sheet_name, 7, 6, "Test Case Failed")
 
-
-
-
-
+        # obj2=Sendemailclass()
+        # obj2.send_email()
 
 
 

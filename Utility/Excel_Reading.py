@@ -1,8 +1,8 @@
 import openpyxl
 
-import Ellicium.DBConfigurations.Config_file
+import DBConfigurations.Config_file
 
-xl = Ellicium.DBConfigurations.Config_file.Excel_Report_File
+xl = DBConfigurations.Config_file.TestcaseReport
 
 
 def get_row_count(file, sheetname):
@@ -28,6 +28,7 @@ def write_data(file, sheetname, rownum, columnno, data):
     sheet = workbook[sheetname]
     sheet.cell(row=rownum, column=columnno).value = data
     workbook.save(file)
+
 
 
 
